@@ -78,9 +78,48 @@ int parse_attrib_list(char *attrib_list, unsigned int n_attribs,
     return 0;
 }
 
+// Compute closure of a given set of attributes
+void print_attribute_closure(const Graph *g, const HashMap *attrib,
+    unsigned int **visited_buf, const unsigned int *visited_thresh,
+    unsigned int n_attribs) {
+    
+    // Initialize visited_buf to known state
+    unsigned int j;
+    for (j = 0; j < g->n_vert; ++j) {
+        (*visited_buf)[j] = 0;
+    }
+    
+    size_t i;
+    size_t attrib_size = HashMap_size(attrib);
+    printf("Closure of: ");
+    for (i = 0; i < attrib_size; ++i) {
+        unsigned int index = HashMap_get(attrib, i);
+        printf("%c ", (char)(index + 'A'));
+        // Compute of current attribute -> update visited_buf
+        Graph_BFS_closure(g, index, visited_buf, visited_thresh);
+    }
+    printf("\nis...\n");
+    
+    bool is_super_key = true;
+    for (j = 0; j < n_attribs; ++j) {
+        if ((*visited_buf)[j] == 1) {
+            printf("%c ", (char)(j + 'A'));
+        } else {
+            is_super_key = false;
+        }
+    }
+    printf("\nSuper-key? ");
+    if (is_super_key) {
+        printf("Yes\n");
+    } else {
+        printf("No\n");
+    }
+}
+
 int main(int argc, char *argv[]) {
-    if (argc != 2) {
-        fprintf(stderr, "Usage: ./func_dep <functional dependecy file>\n");
+    if (argc < 3) {
+        fprintf(stderr, "Usage: ./func_dep <functional dependecy file>" 
+                " <list of attributes>\n");
         exit(EXIT_FAILURE);
     }
     
@@ -106,6 +145,30 @@ int main(int argc, char *argv[]) {
     }
     
     printf("Number of attributes: %u\n", n_attribs);
+    // Read attributes
+    HashMap attrib_cml;
+    HashMap_init(&attrib_cml);
+    
+    int arg_offset = 2;
+    for (int j = arg_offset; j < argc; ++j) {
+        char c = argv[j][0];
+        // Check if valid attribute
+        if (!is_valid_attrib(c)) {
+            fprintf(stderr, "Invalid attribute, must be <A-Z>\n");
+            fclose(fp);
+            exit(EXIT_FAILURE);
+        }
+        unsigned int index = (unsigned int)(c - 'A');
+        // Check if index is in valid range
+        if (index >= n_attribs) {
+            fprintf(stderr, "Invalid attribute: %c, expected attributes"
+                " from A to %c\n", c, (char)('A' + (n_attribs - 1)));
+            fclose(fp);
+            exit(EXIT_FAILURE);
+        }
+        // Insert attribute in hash map
+        HashMap_insert(&attrib_cml, index);
+    }
     
     // Initialize graph
     Graph g;
@@ -209,11 +272,14 @@ int main(int argc, char *argv[]) {
     // Dump visited thresh into random access array
     unsigned int *visited_thresh = LL_dump_to_array(&ll_visited_thresh);
     // Visited buffer for each vertex
-    unsigned int *visited_buf = (unsigned int *) calloc(g.n_vert,
+    unsigned int *visited_buf = (unsigned int *) malloc(g.n_vert *
         sizeof(unsigned int));
     assert(visited_buf != NULL);
     
+    print_attribute_closure(&g, &attrib_cml, &visited_buf, 
+        visited_thresh, n_attribs);
     // DEBUG
+    /*
     // Print visited thresh
     for (unsigned int i = 0; i < g.n_vert; ++i) {
         printf("%u %u\n", visited_thresh[i], visited_buf[i]);
@@ -239,6 +305,7 @@ int main(int argc, char *argv[]) {
         printf("\n");
     }
     printf("\n");
+    */
     // Cleanup visited thresh & buffer
     free(visited_thresh);
     free(visited_buf);

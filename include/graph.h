@@ -62,6 +62,51 @@ unsigned int Graph_new_vertex(Graph *graph) {
     return graph->n_vert++;
 }
 
+void Graph_BFS_closure(const Graph *graph, unsigned int source, 
+    unsigned int **visited_buf, const unsigned int *visited_thresh) {
+        
+    assert(source < graph->n_vert);
+    // Search list containing vertices to explore
+    LinkedList search_list;
+    LL_init(&search_list);
+    // Initialize visited buf for source
+    (*visited_buf)[source] = 1;
+    // Add source to search list
+    LL_insert(&search_list, source);
+    
+    while (LL_size(&search_list) != 0) {
+        unsigned int current = LL_pop(&search_list);
+        assert(current != LL_INVALID_KEY);
+        
+        // Get iterator for adjacency list
+        LinkedList *ll = DArray_get(&graph->adjList, current);
+        LL_iterator_t iter = LL_iterator(ll);
+        
+        while (iter != NULL) {
+            unsigned int neighbor = iter->key;
+            // Get threshold for current neighbor
+            const unsigned int thresh = visited_thresh[neighbor];
+            // If threshold was already reached previously, move on
+            // to next neighbor
+            if ((*visited_buf)[neighbor] == thresh) {
+                iter = iter->next;
+                continue;
+            }
+            // Increment visited buffer entry for neighbor
+            (*visited_buf)[neighbor]++;
+            // Check if threshold has been reached
+            if ((*visited_buf)[neighbor] == thresh) {
+                // Add this neighbor to search list
+                LL_insert(&search_list, neighbor);
+            }
+            // Move on to next neighbor
+            iter = iter->next;
+        }
+    }
+    // Cleanup
+    LL_free(&search_list);    
+}
+
 void Graph_free(Graph *graph) {
     // Free adjacency list
     DArray_free(&graph->adjList);
