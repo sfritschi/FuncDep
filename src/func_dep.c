@@ -231,12 +231,14 @@ int main(int argc, char *argv[]) {
             Graph_free(&g);
             exit(EXIT_FAILURE);
         }
-        // Create new vertex if multiple attributes on left
+        // Create new vertex if multiple attributes on left side
         size_t left = HashMap_size(&h_left);
         size_t right = HashMap_size(&h_right);
         // DEBUG
         assert(left > 0 && right > 0);
-        
+        // Connect relevant edges to build directed graph and
+        // add newly created vertices with their respective 'visitation
+        // threshold'
         size_t i;
         unsigned int other_index;
         if (left > 1) {
@@ -275,7 +277,7 @@ int main(int argc, char *argv[]) {
     unsigned int *visited_buf = (unsigned int *) malloc(g.n_vert *
         sizeof(unsigned int));
     assert(visited_buf != NULL);
-    
+    // Print closure of attributes from command line
     print_attribute_closure(&g, &attrib_cml, &visited_buf, 
         visited_thresh, n_attribs);
     // DEBUG
