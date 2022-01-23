@@ -84,7 +84,7 @@ void Graph_BFS_closure(const Graph *graph, unsigned int source,
         assert(current != LL_INVALID_KEY);
         
         // Get iterator for adjacency list
-        LinkedList *ll = DArray_get(&graph->adjList, current);
+        const LinkedList *ll = DArray_get(&graph->adjList, current);
         LL_iterator_t iter = LL_iterator(ll);
         
         while (iter != NULL) {
