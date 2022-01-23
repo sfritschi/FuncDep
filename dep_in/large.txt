@@ -1,7 +1,7 @@
 9
-A->B,C
-B->D,E
-C->F,G
-D,G->H
-E,F->I
-H,I->A
+A -> B, C
+B -> D, E
+C -> F, G
+D, G -> H
+E, F -> I
+H, I -> A

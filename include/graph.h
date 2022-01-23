@@ -66,6 +66,11 @@ void Graph_BFS_closure(const Graph *graph, unsigned int source,
     unsigned int **visited_buf, const unsigned int *visited_thresh) {
         
     assert(source < graph->n_vert);
+    // Check if source vertex was visited previously
+    if ((*visited_buf)[source] == 1) {
+        // nothing left to do
+        return;
+    }
     // Search list containing vertices to explore
     LinkedList search_list;
     LL_init(&search_list);
