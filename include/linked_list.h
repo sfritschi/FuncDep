@@ -9,11 +9,12 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <assert.h>
 
 #define LL_INVALID_KEY (0xFFFFFFFF)
 
-typedef unsigned int key_t;
+typedef uint32_t key_t;
 typedef struct node_t * LL_iterator_t;
 
 // Node within linked list
@@ -26,7 +27,7 @@ struct node_t {
 typedef struct {
     struct node_t *head;  // add elements at head
     struct node_t *tail;  // remove elements from tail
-    size_t size;
+    uint32_t size;
 } LinkedList;
 
 // Initialize linked list datastructure
@@ -37,7 +38,7 @@ void LL_init(LinkedList *ll) {
 }
 
 // Fetch current size of linked list
-size_t LL_size(const LinkedList *ll) {
+uint32_t LL_size(const LinkedList *ll) {
     return ll->size;
 }
 

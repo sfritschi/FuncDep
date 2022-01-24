@@ -12,11 +12,11 @@ typedef LinkedList data_t;
 
 typedef struct {
     data_t *data;
-    size_t size;  // size apparent to user
-    size_t cap;  // true size of array
+    uint32_t size;  // size apparent to user
+    uint32_t cap;  // true size of array
 } DArray;
 
-size_t DArray_size(const DArray *arr) {
+uint32_t DArray_size(const DArray *arr) {
     return arr->size;
 }
 
@@ -31,12 +31,12 @@ void DArray_init(DArray *arr) {
     arr->cap = 1;    
 }
 
-void DArray_init_reserve(DArray *arr, size_t n) {
+void DArray_init_reserve(DArray *arr, uint32_t n) {
     arr->data = (data_t *) malloc(n * sizeof(data_t));
     // Check if allocation failed
     assert(arr->data != NULL);
     // Initialize data
-    for (size_t i = 0; i < n; ++i) {
+    for (uint32_t i = 0; i < n; ++i) {
         LL_init(&arr->data[i]);
     }
     
@@ -55,7 +55,7 @@ void DArray_insert(DArray *arr) {
     LL_init(&arr->data[arr->size++]);
 }
 
-data_t *DArray_get(const DArray *arr, size_t i) {
+data_t *DArray_get(const DArray *arr, uint32_t i) {
     assert(i < arr->size);
     
     return &arr->data[i];
@@ -63,7 +63,7 @@ data_t *DArray_get(const DArray *arr, size_t i) {
 
 void DArray_free(DArray *arr) {
     // Free all linked lists
-    for (size_t i = 0; i < arr->size; ++i) {
+    for (uint32_t i = 0; i < arr->size; ++i) {
         LL_free(&arr->data[i]);
     }
     free(arr->data);

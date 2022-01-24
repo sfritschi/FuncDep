@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-Wall -Wextra -Wpedantic -std=c11 -fopenmp
+CFLAGS=-Wall -Wextra -Wpedantic -std=c11 -march=native -D_POSIX_C_SOURCE
 
 TARGET=func_dep
 SOURCE=src
