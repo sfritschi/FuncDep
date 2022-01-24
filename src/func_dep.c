@@ -3,7 +3,7 @@
  * dependencies found in specified file.
  * 
  * (Suggested) format of functional dependencies (FDs):
- * - Precede FD list with total number of attributes used.
+ * - (Required) precede FD list with total number of attributes used.
  * - Unique left-hand sides, i.e. A,B->C & A,B->D becomes A,B->C,D.
  * - This is only recommended for multi-attribute left-hand sides, as
  *   this avoids unnecessary generation of a new auxiliary attribute 
@@ -164,7 +164,7 @@ void print_all_candidate_keys(const Graph *g, const Queue *L,
     // Add this ckey to ckeys and work
     Q_insert(&ckeys, ckey);
     Q_insert(&work, ckey);
-    // Iterate until no work left (no candidates to check
+    // Iterate until no work left (no candidates to check)
     while (Q_size(&work) != 0) {
         // Fetch kurrent key from work queue
         Set key = Q_pop(&work);
@@ -180,7 +180,7 @@ void print_all_candidate_keys(const Graph *g, const Queue *L,
             // Compute S
             Set diff = Set_difference(&key, &s_right);
             Set S = Set_union(&s_left, &diff);
-            // Test for inclusion
+            // Test for inclusion of any already found candidate key
             bool test = true;
             // Iterate through already found candidate keys
             Q_iterator_t ckey_iter = Q_iterator(&ckeys);
@@ -196,7 +196,8 @@ void print_all_candidate_keys(const Graph *g, const Queue *L,
             }
             
             if (test) {
-                // Compute new candidate key
+                // Set S is a super-key and does not contain any already
+                // found candidate keys -> compute new candidate key
                 Set new_key = candidate_key_from_super_key(g, &S, visited_buf,
                     visited_thresh, n_attribs);
                 // Add newly found key to both queues
@@ -210,7 +211,8 @@ void print_all_candidate_keys(const Graph *g, const Queue *L,
             right = right->next;
         }
     }
-    
+    // Print number of candidate keys found
+    printf("Number of candidate keys: %u\n", Q_size(&ckeys));
     // Cleanup
     Q_free(&ckeys);
     Q_free(&work);
