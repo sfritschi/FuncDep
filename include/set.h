@@ -8,8 +8,10 @@
 #include <popcntintrin.h>  // _mm_popcnt_u32
 // TODO: Add support for alternative architectures
 
+#include <assert.h>
+
 #define MAX_ATTRIBS 26
-#define INVALID_ATTRIB (MAX_ATTRIBS + 1)
+#define INVALID_ATTRIB (MAX_ATTRIBS)
 #define USED_MASK 0x03FFFFFF  // mask for bits that are actually used
 
 typedef struct {
@@ -79,6 +81,13 @@ void Set_full(Set *s, uint8_t n_attribs) {
     s->size = n_attribs;
     s->cursor = 0;
     s->count = 0;
+}
+
+// Check if set contains all attributes
+bool Set_is_full(const Set *s, uint8_t n_attribs) {
+    assert(n_attribs <= MAX_ATTRIBS);
+    
+    return s->size == n_attribs;
 }
 
 // Insert attribute in set

@@ -16,8 +16,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
+#include <time.h>
 
-#include "graph.h"
 #include "set.h"
 #include "queue.h"
 
@@ -83,37 +83,99 @@ int8_t parse_attrib_list(char *attrib_list, uint8_t n_attribs,
     return 0;
 }
 
-bool check_super_key(const Graph *g, Set *attrib,
-    uint32_t *visited_buf, const uint32_t *visited_thresh,
+// Compute closure of a set of attributes for given queues consisting
+// of attributes of left/right sides of all functional dependencies
+Set Set_closure(const Set *s, const Queue *l, const Queue *r,
     uint8_t n_attribs) {
     
-    // Initialize visited_buf to known state
-    uint8_t j;
-    for (j = 0; j < g->n_vert; ++j) {
-        visited_buf[j] = 0;
-    }
+    // Make sure queues l and r are of same size
+    assert(Q_size(l) == Q_size(r));
     
-    for (j = 0; j < attrib->size; ++j) {
-        // Fetch attribute index
-        uint8_t index = Set_next_pos(attrib);
-        // Compute closure of current attribute -> update visited_buf
-        Graph_BFS_closure(g, index, visited_buf, visited_thresh);
-    }
-    // Check if any attribute was NOT reached
-    for (j = 0; j < n_attribs; ++j) {
-        if (visited_buf[j] != 1) {
-            return false;
+    // Output
+    Set closure;
+    Set_copy(&closure, s);
+    
+    bool is_new_attrib = true;
+    while (is_new_attrib) {
+        // Set no new attrib found
+        is_new_attrib = false;
+        // Iterate through all functional dependencies
+        Q_iterator_t l_iter = Q_iterator(l);
+        Q_iterator_t r_iter = Q_iterator(r);
+        
+        while (l_iter != NULL && r_iter != NULL) {
+            // Check if left-hand side is already contained in closure
+            // while right-side is not
+            if (Set_contains(&closure, &l_iter->key) &&
+                !Set_contains(&closure, &r_iter->key)) {
+                
+                // Add right-hand side to out
+                closure = Set_union(&closure, &r_iter->key);
+                // Check if closure is already full
+                if (Set_is_full(&closure, n_attribs)) {
+                    goto end;  // nothing left to add
+                }
+                // Found new attribute(s)
+                is_new_attrib = true;
+            }
+            // Advance iterators
+            l_iter = l_iter->next;
+            r_iter = r_iter->next;
         }
     }
-    return true;  // attribute set is super-key
+
+end:
+    return closure;
+}
+
+// Check if set of attributes s is a super-key given functional
+// dependencies in l -> r
+bool Set_is_superkey(const Set *s, const Queue *l, const Queue *r,
+    uint8_t n_attribs) {
+    
+    // Make sure queues l and r are of same size
+    assert(Q_size(l) == Q_size(r));
+    
+    // Output
+    Set closure;
+    Set_copy(&closure, s);
+    
+    bool is_new_attrib = true;
+    while (is_new_attrib) {
+        // Set no new attrib found
+        is_new_attrib = false;
+        // Iterate through all functional dependencies
+        Q_iterator_t l_iter = Q_iterator(l);
+        Q_iterator_t r_iter = Q_iterator(r);
+        
+        while (l_iter != NULL && r_iter != NULL) {
+            // Check if left-hand side is already contained in closure
+            // while right-side is not
+            if (Set_contains(&closure, &l_iter->key) &&
+                !Set_contains(&closure, &r_iter->key)) {
+                
+                // Add right-hand side to out
+                closure = Set_union(&closure, &r_iter->key);
+                if (Set_is_full(&closure, n_attribs)) {
+                    return true;  // Set s is super-key
+                }
+                // Found new attribute(s)
+                is_new_attrib = true;
+            }
+            // Advance iterators
+            l_iter = l_iter->next;
+            r_iter = r_iter->next;
+        }
+    }
+    
+    return false;
 }
 
 // From paper: Candidate Keys for Relations (journal of computer and
 // system sciences 1978) by Claudio Lucchesi and Sylvia Osborn.
 // Algorithm. Minimal Key (A, D[0], K)
-Set candidate_key_from_super_key(const Graph *g, Set *skey,
-    uint32_t *visited_buf, const uint32_t *visited_thresh, 
-    uint8_t n_attribs) {
+Set candidate_key_from_super_key(Set *skey, const Queue *L,
+    const Queue *R, uint8_t n_attribs) {
     
     Set ckey, temp;
     // Copy attributes
@@ -129,9 +191,7 @@ Set candidate_key_from_super_key(const Graph *g, Set *skey,
         // Remove attribute from temp
         Set_remove(&temp, attrib);
         // Check if ckey - attrib is still a super-key
-        if (check_super_key(g, &temp, visited_buf, 
-                                visited_thresh, n_attribs))
-        {
+        if (Set_is_superkey(&temp, L, R, n_attribs)) {
             // Attribute attrib is non-essential to ckey -> remove
             Set_copy(&ckey, &temp);
         }
@@ -142,9 +202,8 @@ Set candidate_key_from_super_key(const Graph *g, Set *skey,
 // From paper: Candidate Keys for Relations (journal of computer and
 // system sciences 1978) by Claudio Lucchesi and Sylvia Osborn.
 // Algorithm. Set of Minimal Keys (A, D[0])
-void print_all_candidate_keys(const Graph *g, const Queue *L,
-    const Queue *R, uint32_t *visited_buf, 
-    const uint32_t *visited_thresh, uint8_t n_attribs) {
+void print_all_candidate_keys(const Queue *L, const Queue *R,
+    uint8_t n_attribs) {
     
     // Make sure attribute queues of FDs are of the same size
     assert(Q_size(L) == Q_size(R));
@@ -157,16 +216,15 @@ void print_all_candidate_keys(const Graph *g, const Queue *L,
     Set attribs;
     Set_full(&attribs, n_attribs);
     // Compute first ckey using all attributes
-    Set ckey = candidate_key_from_super_key(g, &attribs, visited_buf,
-        visited_thresh, n_attribs);
+    Set ckey = candidate_key_from_super_key(&attribs, L, R, n_attribs);
     // Print first key
     Set_print(&ckey);
     // Add this ckey to ckeys and work
     Q_insert(&ckeys, ckey);
     Q_insert(&work, ckey);
-    // Iterate until no work left (no candidates to check)
+    // Iterate until no work left (no more candidates to check)
     while (Q_size(&work) != 0) {
-        // Fetch kurrent key from work queue
+        // Fetch current key from work queue
         Set key = Q_pop(&work);
         // Iterate over all FDs
         Q_iterator_t left = Q_iterator(L);
@@ -182,7 +240,7 @@ void print_all_candidate_keys(const Graph *g, const Queue *L,
             Set S = Set_union(&s_left, &diff);
             // Test for inclusion of any already found candidate key
             bool test = true;
-            // Iterate through already found candidate keys
+            // Iterate through all already found candidate keys
             Q_iterator_t ckey_iter = Q_iterator(&ckeys);
             while (ckey_iter != NULL) {
                 Set J = ckey_iter->key;
@@ -198,8 +256,8 @@ void print_all_candidate_keys(const Graph *g, const Queue *L,
             if (test) {
                 // Set S is a super-key and does not contain any already
                 // found candidate keys -> compute new candidate key
-                Set new_key = candidate_key_from_super_key(g, &S, visited_buf,
-                    visited_thresh, n_attribs);
+                Set new_key = candidate_key_from_super_key(&S, L, R, 
+                    n_attribs);
                 // Add newly found key to both queues
                 Q_insert(&ckeys, new_key);
                 Q_insert(&work, new_key);
@@ -216,42 +274,6 @@ void print_all_candidate_keys(const Graph *g, const Queue *L,
     // Cleanup
     Q_free(&ckeys);
     Q_free(&work);
-}
-
-// Compute closure of a given set of attributes
-void print_attribute_closure(const Graph *g, Set *attrib,
-    uint32_t *visited_buf, const uint32_t *visited_thresh,
-    uint8_t n_attribs) {
-    
-    // Initialize visited_buf to known state
-    uint8_t j;
-    for (j = 0; j < g->n_vert; ++j) {
-        visited_buf[j] = 0;
-    }
-    
-    printf("Closure of: ");
-    for (j = 0; j < attrib->size; ++j) {
-        uint8_t index = Set_next_pos(attrib);
-        printf("%c ", (char)(index + 'A'));
-        // Compute of current attribute -> update visited_buf
-        Graph_BFS_closure(g, index, visited_buf, visited_thresh);
-    }
-    printf("\nis...\n");
-    
-    bool is_super_key = true;
-    for (j = 0; j < n_attribs; ++j) {
-        if (visited_buf[j] == 1) {
-            printf("%c ", (char)(j + 'A'));
-        } else {
-            is_super_key = false;
-        }
-    }
-    printf("\nSuper-key? ");
-    if (is_super_key) {
-        printf("Yes\n");
-    } else {
-        printf("No\n");
-    }
 }
 
 int main(int argc, char *argv[]) {
@@ -309,17 +331,6 @@ int main(int argc, char *argv[]) {
         Set_insert(&attrib_cml, index);
     }
     */
-    // Initialize graph
-    Graph g;
-    Graph_init(&g, n_attribs);
-    // Initialize linked list for visited thresholds
-    LinkedList ll_visited_thresh;
-    LL_init(&ll_visited_thresh);
-    // Insert all known vertices (attributes) with threshold of 1
-    uint8_t i_attrib;
-    for (i_attrib = 0; i_attrib < n_attribs; ++i_attrib) {
-        LL_insert(&ll_visited_thresh, 1);
-    }
     // Parse contents of file
     uint32_t line_num = 0;
     char line_buf[MAX_LINE_LEN];
@@ -346,7 +357,6 @@ int main(int argc, char *argv[]) {
         if (attrib_list == NULL) {
             fprintf(stderr, "Missing '->'\n");
             fclose(fp);
-            Graph_free(&g);
             exit(EXIT_FAILURE);
         }
         // Parse left-hand side
@@ -354,7 +364,6 @@ int main(int argc, char *argv[]) {
             &save_attrib, &s_left, LEFT);
         if (ierr) {
             fclose(fp);
-            Graph_free(&g);
             exit(EXIT_FAILURE);
         }
         
@@ -364,7 +373,6 @@ int main(int argc, char *argv[]) {
         if (attrib_list == NULL) {
             fprintf(stderr, "Right-hand side empty\n");
             fclose(fp);
-            Graph_free(&g);
             exit(EXIT_FAILURE);
         }
         // Parse right-hand side
@@ -372,100 +380,31 @@ int main(int argc, char *argv[]) {
             &s_right, RIGHT);
         if (ierr) {
             fclose(fp);
-            Graph_free(&g);
             exit(EXIT_FAILURE);
         }
         // Add sets of attributes to respective queues
         Q_insert(&q_left, s_left);
         Q_insert(&q_right, s_right);
-        // Create new vertex if multiple attributes on left side
-        uint8_t left = s_left.size;
-        uint8_t right = s_right.size;
-        // DEBUG
-        assert(left > 0 && right > 0);
-        // Connect relevant edges to build directed graph and
-        // add newly created vertices with their respective 'visitation
-        // threshold'
-        uint8_t i;
-        uint8_t other_index;
-        if (left > 1) {
-            // DEBUG Print new vertex
-            //printf("Creating new vertex...\n");
-            uint32_t new_index = Graph_new_vertex(&g);
-            // Connect all vertices in 'h_left' with new vertex
-            for (i = 0; i < left; ++i) {
-                other_index = Set_next_pos(&s_left);
-                Graph_add_edge(&g, other_index, new_index);
-            }
-            // Connect new vertex to every vertex in 'h_right'
-            for (i = 0; i < right; ++i) {
-                other_index = Set_next_pos(&s_right);
-                Graph_add_edge(&g, new_index, other_index);
-            }
-            // Set visited thresh for new vertex to 'left'
-            LL_insert(&ll_visited_thresh, left);
-        } else {
-            // Connect (single) vertex on the left with all vertices
-            // on the right
-            uint8_t left_index = Set_next_pos(&s_left);
-            for (i = 0; i < right; ++i) {
-                other_index = Set_next_pos(&s_right);
-                Graph_add_edge(&g, left_index, other_index);
-            }
-        }
         // Increment line number
         ++line_num;
     }
     // Close file
     fclose(fp);
-    // Dump visited thresh into random access array
-    uint32_t *visited_thresh = LL_dump_to_array(&ll_visited_thresh);
-    // Visited buffer for each vertex
-    uint32_t *visited_buf = (uint32_t *) malloc(g.n_vert *
-        sizeof(uint32_t));
-    assert(visited_buf != NULL);
     // Print closure of attributes from command line
     //print_attribute_closure(&g, &attrib_cml, visited_buf, 
     //    visited_thresh, n_attribs);
     printf("Candidate keys for FDs in '%s':\n", file_name);
-    print_all_candidate_keys(&g, &q_left, &q_right, visited_buf,
-        visited_thresh, n_attribs);
-    // DEBUG
-    /*
-    // Print visited thresh
-    for (uint32_t i = 0; i < g.n_vert; ++i) {
-        printf("%u %u\n", visited_thresh[i], visited_buf[i]);
-    }
-    printf("\n");
-    // Print adjacency list of graph
-    for (uint32_t i = 0; i < g.n_vert; ++i) {
-        LinkedList *ll = DArray_get(&g.adjList, i);
-        LL_iterator_t iter = LL_iterator(ll);
-        if (i < n_attribs) {
-            printf("%c > ", (char)(i + 'A'));
-        } else {
-            printf("%u > ", i);
-        }
-        while (iter != NULL) {
-            if (iter->key < n_attribs) {
-                printf("%c ", (char)(iter->key + 'A'));
-            } else {
-                printf("%u ", iter->key);
-            }
-            iter = iter->next;
-        }
-        printf("\n");
-    }
-    printf("\n");
-    */
+    // Measure CPU time
+    clock_t start = clock(), elapsed;
+    // Print all candidate keys of functional dependencies to console
+    print_all_candidate_keys(&q_left, &q_right, n_attribs);
+    // Elapsed CPU time
+    elapsed = clock() - start;
+    double seconds = (double)elapsed / CLOCKS_PER_SEC;
+    printf("Took: %.3e s\n", seconds);
     // Cleanup queues
     Q_free(&q_left);
     Q_free(&q_right);
-    // Cleanup visited thresh & buffer
-    free(visited_thresh);
-    free(visited_buf);
-    // Cleanup graph
-    Graph_free(&g);
     
     return 0;
 }
