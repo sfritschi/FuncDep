@@ -5,11 +5,15 @@ TARGET=func_dep
 SOURCE=src
 HEADER=include
 
-.PHONY: all, clean
+.PHONY: all, debug, clean
 all=${TARGET}
 
 ${TARGET}: ${SOURCE}/${TARGET}.c
-	${CC} ${CFLAGS} -o $@ $^ -I${HEADER}/
+	${CC} -O3 ${CFLAGS} -o $@ $^ -I${HEADER}/
+
+debug: ${SOURCE}/${TARGET}.c
+	${CC} -g ${CFLAGS} -o $@ $^ -I${HEADER}/
 
 clean:
 	${RM} ${TARGET}
+	${RM} debug
