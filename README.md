@@ -12,8 +12,7 @@ B -> D, E\
 C -> F, G\
 D, G -> H\
 E, F -> I\
-H, I -> A\
-
+H, I -> A
 
 ## Sample output:
 Number of attributes: 9\
@@ -27,8 +26,8 @@ D E F G\
 B F H\
 C E H\
 A\
-B C\ 
+B C\
 B F G\
 C D E\
 Number of candidate keys: 12\
-Took: 6.900e-05 s\
+Took: 6.900e-05 s
