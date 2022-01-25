@@ -85,7 +85,7 @@ int8_t parse_attrib_list(char *attrib_list, uint8_t n_attribs,
 
 // Compute closure of a set of attributes for given queues consisting
 // of attributes of left/right sides of all functional dependencies
-Set Set_closure(const Set *s, const Queue *l, const Queue *r,
+Set compute_closure(const Set *s, const Queue *l, const Queue *r,
     uint8_t n_attribs) {
     
     // Make sure queues l and r are of same size
@@ -130,7 +130,7 @@ end:
 
 // Check if set of attributes s is a super-key given functional
 // dependencies in l -> r
-bool Set_is_superkey(const Set *s, const Queue *l, const Queue *r,
+bool is_superkey(const Set *s, const Queue *l, const Queue *r,
     uint8_t n_attribs) {
     
     // Make sure queues l and r are of same size
@@ -191,7 +191,7 @@ Set candidate_key_from_super_key(Set *skey, const Queue *L,
         // Remove attribute from temp
         Set_remove(&temp, attrib);
         // Check if ckey - attrib is still a super-key
-        if (Set_is_superkey(&temp, L, R, n_attribs)) {
+        if (is_superkey(&temp, L, R, n_attribs)) {
             // Attribute attrib is non-essential to ckey -> remove
             Set_copy(&ckey, &temp);
         }
