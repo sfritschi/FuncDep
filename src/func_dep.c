@@ -35,7 +35,7 @@ bool is_valid_attrib(char attrib) {
 }
 
 int8_t parse_attrib_list(char *attrib_list, uint8_t n_attribs,
-    char **save_attrib, Set *vertices, enum EXPR_SIDES side) {
+    char **save_attrib, Set *attribs, enum EXPR_SIDES side) {
     
     (void)side;
     /* DEBUG
@@ -45,9 +45,9 @@ int8_t parse_attrib_list(char *attrib_list, uint8_t n_attribs,
         printf("RIGHT\n");
     }
     */
-    // Hash map for all unique vertices found on one expression side
+    // Set for all unique attributes found on one expression side
     // (Re-)set to known state
-    Set_init(vertices);
+    Set_init(attribs);
     // First attribute within attribute list
     char *attrib = strtok_r(attrib_list, DELIM, save_attrib);
     while (attrib != NULL) {
@@ -76,7 +76,7 @@ int8_t parse_attrib_list(char *attrib_list, uint8_t n_attribs,
             return 1;
         }
         // Put index in set
-        Set_insert(vertices, index);
+        Set_insert(attribs, index);
         // Move to next attribute within list
         attrib = strtok_r(NULL, DELIM, save_attrib);
     }
@@ -278,8 +278,7 @@ void print_all_candidate_keys(const Queue *L, const Queue *R,
 
 int main(int argc, char *argv[]) {
     if (argc < 2) {
-        fprintf(stderr, "Usage: ./func_dep <functional dependecy file>" 
-                " <list of attributes>\n");
+        fprintf(stderr, "Usage: ./func_dep <functional dependecy file>\n");
         exit(EXIT_FAILURE);
     }
     
