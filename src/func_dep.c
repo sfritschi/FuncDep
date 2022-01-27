@@ -34,6 +34,16 @@ bool is_valid_attrib(char attrib) {
     return 'A' <= attrib && attrib <= 'Z';
 }
 
+void handle_error(FILE *fp, Queue *L, Queue *R) {
+    // Close file
+    fclose(fp);
+    // Clean up queues
+    Q_free(L);
+    Q_free(R);
+    // Exit with error code
+    exit(EXIT_FAILURE);
+}
+
 int8_t parse_attrib_list(char *attrib_list, uint8_t n_attribs,
     char **save_attrib, Set *attribs, enum EXPR_SIDES side) {
     
@@ -355,15 +365,13 @@ int main(int argc, char *argv[]) {
         // Check for missing ->
         if (attrib_list == NULL) {
             fprintf(stderr, "Missing '->'\n");
-            fclose(fp);
-            exit(EXIT_FAILURE);
+            handle_error(fp, &q_left, &q_right);
         }
         // Parse left-hand side
         ierr = parse_attrib_list(attrib_list, n_attribs, 
             &save_attrib, &s_left, LEFT);
         if (ierr) {
-            fclose(fp);
-            exit(EXIT_FAILURE);
+            handle_error(fp, &q_left, &q_right);
         }
         
         // Move to next delimited item
@@ -371,15 +379,13 @@ int main(int argc, char *argv[]) {
         // Check for missing right-hand side
         if (attrib_list == NULL) {
             fprintf(stderr, "Right-hand side empty\n");
-            fclose(fp);
-            exit(EXIT_FAILURE);
+            handle_error(fp, &q_left, &q_right);
         }
         // Parse right-hand side
         ierr = parse_attrib_list(attrib_list, n_attribs, &save_attrib, 
             &s_right, RIGHT);
         if (ierr) {
-            fclose(fp);
-            exit(EXIT_FAILURE);
+            handle_error(fp, &q_left, &q_right);
         }
         // Add sets of attributes to respective queues
         Q_insert(&q_left, s_left);
