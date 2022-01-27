@@ -52,7 +52,7 @@ int8_t parse_attrib_list(char *attrib_list, uint8_t n_attribs,
     char *attrib = strtok_r(attrib_list, DELIM, save_attrib);
     while (attrib != NULL) {
         char *iter = attrib;
-        uint8_t index = MAX_ATTRIBS;  // invalid index
+        uint8_t index = INVALID_ATTRIB;  // invalid index
         // Tokens from strtok(_r) are NULL-terminated
         while (*iter != '\0') {
             // Check if valid attribute found
@@ -71,7 +71,7 @@ int8_t parse_attrib_list(char *attrib_list, uint8_t n_attribs,
             ++iter;
         }
         // Check if valid attribute was found
-        if (index == MAX_ATTRIBS) {
+        if (index == INVALID_ATTRIB) {
             fprintf(stderr, "Missing valid attribute <A-Z>\n");
             return 1;
         }
@@ -80,16 +80,17 @@ int8_t parse_attrib_list(char *attrib_list, uint8_t n_attribs,
         // Move to next attribute within list
         attrib = strtok_r(NULL, DELIM, save_attrib);
     }
+    
     return 0;
 }
 
 // Compute closure of a set of attributes for given queues consisting
 // of attributes of left/right sides of all functional dependencies
-Set compute_closure(const Set *s, const Queue *l, const Queue *r,
+Set compute_closure(const Set *s, const Queue *L, const Queue *R,
     uint8_t n_attribs) {
     
     // Make sure queues l and r are of same size
-    assert(Q_size(l) == Q_size(r));
+    assert(Q_size(L) == Q_size(R));
     
     // Output
     Set closure;
@@ -100,17 +101,17 @@ Set compute_closure(const Set *s, const Queue *l, const Queue *r,
         // Set no new attrib found
         is_new_attrib = false;
         // Iterate through all functional dependencies
-        Q_iterator_t l_iter = Q_iterator(l);
-        Q_iterator_t r_iter = Q_iterator(r);
+        Q_iterator_t left = Q_iterator(L);
+        Q_iterator_t right = Q_iterator(R);
         
-        while (l_iter != NULL && r_iter != NULL) {
+        while (left != NULL && right != NULL) {
             // Check if left-hand side is already contained in closure
             // while right-side is not
-            if (Set_contains(&closure, &l_iter->key) &&
-                !Set_contains(&closure, &r_iter->key)) {
+            if (Set_contains(&closure, &left->key) &&
+                !Set_contains(&closure, &right->key)) {
                 
                 // Add right-hand side to out
-                closure = Set_union(&closure, &r_iter->key);
+                closure = Set_union(&closure, &right->key);
                 // Check if closure is already full
                 if (Set_is_full(&closure, n_attribs)) {
                     goto end;  // nothing left to add
@@ -119,8 +120,8 @@ Set compute_closure(const Set *s, const Queue *l, const Queue *r,
                 is_new_attrib = true;
             }
             // Advance iterators
-            l_iter = l_iter->next;
-            r_iter = r_iter->next;
+            left = left->next;
+            right = right->next;
         }
     }
 
@@ -130,11 +131,11 @@ end:
 
 // Check if set of attributes s is a super-key given functional
 // dependencies in l -> r
-bool is_superkey(const Set *s, const Queue *l, const Queue *r,
+bool is_superkey(const Set *s, const Queue *L, const Queue *R,
     uint8_t n_attribs) {
     
     // Make sure queues l and r are of same size
-    assert(Q_size(l) == Q_size(r));
+    assert(Q_size(L) == Q_size(R));
     
     // Output
     Set closure;
@@ -145,17 +146,17 @@ bool is_superkey(const Set *s, const Queue *l, const Queue *r,
         // Set no new attrib found
         is_new_attrib = false;
         // Iterate through all functional dependencies
-        Q_iterator_t l_iter = Q_iterator(l);
-        Q_iterator_t r_iter = Q_iterator(r);
+        Q_iterator_t left = Q_iterator(L);
+        Q_iterator_t right = Q_iterator(R);
         
-        while (l_iter != NULL && r_iter != NULL) {
+        while (left != NULL && right != NULL) {
             // Check if left-hand side is already contained in closure
             // while right-side is not
-            if (Set_contains(&closure, &l_iter->key) &&
-                !Set_contains(&closure, &r_iter->key)) {
+            if (Set_contains(&closure, &left->key) &&
+                !Set_contains(&closure, &right->key)) {
                 
                 // Add right-hand side to out
-                closure = Set_union(&closure, &r_iter->key);
+                closure = Set_union(&closure, &right->key);
                 if (Set_is_full(&closure, n_attribs)) {
                     return true;  // Set s is super-key
                 }
@@ -163,8 +164,8 @@ bool is_superkey(const Set *s, const Queue *l, const Queue *r,
                 is_new_attrib = true;
             }
             // Advance iterators
-            l_iter = l_iter->next;
-            r_iter = r_iter->next;
+            left = left->next;
+            right = right->next;
         }
     }
     
@@ -256,13 +257,12 @@ void print_all_candidate_keys(const Queue *L, const Queue *R,
             if (test) {
                 // Set S is a super-key and does not contain any already
                 // found candidate keys -> compute new candidate key
-                Set new_key = candidate_key_from_super_key(&S, L, R, 
-                    n_attribs);
+                ckey = candidate_key_from_super_key(&S, L, R, n_attribs);
                 // Add newly found key to both queues
-                Q_insert(&ckeys, new_key);
-                Q_insert(&work, new_key);
+                Q_insert(&ckeys, ckey);
+                Q_insert(&work, ckey);
                 // Print candidate key
-                Set_print(&new_key);
+                Set_print(&ckey);
             }
             // Advance iterators
             left = left->next;
@@ -405,5 +405,5 @@ int main(int argc, char *argv[]) {
     Q_free(&q_left);
     Q_free(&q_right);
     
-    return 0;
+    return EXIT_SUCCESS;
 }

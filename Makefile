@@ -9,7 +9,7 @@ HEADER=include
 all=${TARGET}
 
 ${TARGET}: ${SOURCE}/${TARGET}.c
-	${CC} -O3 ${CFLAGS} -o $@ $^ -I${HEADER}/
+	${CC} -O3 -DNDEBUG ${CFLAGS} -o $@ $^ -I${HEADER}/
 
 debug: ${SOURCE}/${TARGET}.c
 	${CC} -g ${CFLAGS} -o $@ $^ -I${HEADER}/
