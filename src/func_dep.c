@@ -2,12 +2,10 @@
  * Computes closure of given set of attributes and list of functional 
  * dependencies found in specified file.
  * 
- * (Suggested) format of functional dependencies (FDs):
+ * Format of functional dependencies (FDs):
  * - (Required) precede FD list with total number of attributes used.
- * - Unique left-hand sides, i.e. A,B->C & A,B->D becomes A,B->C,D.
- * - This is only recommended for multi-attribute left-hand sides, as
- *   this avoids unnecessary generation of a new auxiliary attribute 
- *   graph vertex.
+ * - May only use attribute names starting from 'A' to #attributes
+ *   next letters in the alphabet. 
  * 
  *
  */
@@ -287,6 +285,7 @@ void print_all_candidate_keys(const Queue *L, const Queue *R,
 }
 
 int main(int argc, char *argv[]) {
+    
     if (argc < 2) {
         fprintf(stderr, "Usage: ./func_dep <functional dependecy file>\n");
         exit(EXIT_FAILURE);
