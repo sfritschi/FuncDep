@@ -1,6 +1,6 @@
 /*
- * Computes closure of given set of attributes and list of functional 
- * dependencies found in specified file.
+ * Prints list of all existing candidate keys given functional
+ * dependencies read from file. 
  * 
  * Format of functional dependencies (FDs):
  * - (Required) precede FD list with total number of attributes used.
@@ -23,11 +23,6 @@
 #define DELIM ","
 #define SEP "->"
 
-enum EXPR_SIDES {
-    LEFT,
-    RIGHT
-};
-
 bool is_valid_attrib(char attrib) {
     return 'A' <= attrib && attrib <= 'Z';
 }
@@ -43,16 +38,8 @@ void handle_error(FILE *fp, Queue *L, Queue *R) {
 }
 
 int8_t parse_attrib_list(char *attrib_list, uint8_t n_attribs,
-    char **save_attrib, Set *attribs, enum EXPR_SIDES side) {
+    char **save_attrib, Set *attribs) {
     
-    (void)side;
-    /* DEBUG
-    if (side == LEFT) {
-        printf("LEFT\n");
-    } else {
-        printf("RIGHT\n");
-    }
-    */
     // Set for all unique attributes found on one expression side
     // (Re-)set to known state
     Set_init(attribs);
@@ -313,32 +300,7 @@ int main(int argc, char *argv[]) {
     }
     
     printf("Number of attributes: %u\n", n_attribs);
-    /*
-    // Read attributes
-    Set attrib_cml;
-    Set_init(&attrib_cml);
     
-    int arg_offset = 2;
-    for (int j = arg_offset; j < argc; ++j) {
-        char c = argv[j][0];
-        // Check if valid attribute
-        if (!is_valid_attrib(c)) {
-            fprintf(stderr, "Invalid attribute, must be <A-Z>\n");
-            fclose(fp);
-            exit(EXIT_FAILURE);
-        }
-        uint8_t index = (uint8_t)(c - 'A');
-        // Check if index is in valid range
-        if (index >= n_attribs) {
-            fprintf(stderr, "Invalid attribute: %c, expected attributes"
-                " from A to %c\n", c, (char)('A' + (n_attribs - 1)));
-            fclose(fp);
-            exit(EXIT_FAILURE);
-        }
-        // Insert attribute in hash map
-        Set_insert(&attrib_cml, index);
-    }
-    */
     // Parse contents of file
     uint32_t line_num = 0;
     char line_buf[MAX_LINE_LEN];
@@ -368,7 +330,7 @@ int main(int argc, char *argv[]) {
         }
         // Parse left-hand side
         ierr = parse_attrib_list(attrib_list, n_attribs, 
-            &save_attrib, &s_left, LEFT);
+            &save_attrib, &s_left);
         if (ierr) {
             handle_error(fp, &q_left, &q_right);
         }
@@ -382,7 +344,7 @@ int main(int argc, char *argv[]) {
         }
         // Parse right-hand side
         ierr = parse_attrib_list(attrib_list, n_attribs, &save_attrib, 
-            &s_right, RIGHT);
+            &s_right);
         if (ierr) {
             handle_error(fp, &q_left, &q_right);
         }
