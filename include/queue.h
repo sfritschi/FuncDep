@@ -103,4 +103,4 @@ void Q_free(Queue *q) {
     }
 }
 
-#endif /* LINKED_LIST_H */
+#endif /* QUEUE_H */
