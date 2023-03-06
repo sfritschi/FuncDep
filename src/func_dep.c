@@ -10,9 +10,10 @@
  *
  */
 
+#include <assert.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <stdint.h>
-#include <stdbool.h>
 #include <string.h>
 #include <time.h>
 
@@ -23,16 +24,15 @@
 #define DELIM ","
 #define SEP "->"
 
-bool is_valid_attrib(char attrib) {
+uint8_t is_valid_attrib(char attrib) {
     return 'A' <= attrib && attrib <= 'Z';
 }
 
-void handle_error(FILE *fp, Queue *L, Queue *R) {
+void exit_on_error(FILE *fp, Queue *q) {
     // Close file
     fclose(fp);
     // Clean up queues
-    Q_free(L);
-    Q_free(R);
+    Q_free(q);
     // Exit with error code
     exit(EXIT_FAILURE);
 }
@@ -81,42 +81,35 @@ int8_t parse_attrib_list(char *attrib_list, uint8_t n_attribs,
 
 // Compute closure of a set of attributes for given queues consisting
 // of attributes of left/right sides of all functional dependencies
-Set compute_closure(const Set *s, const Queue *L, const Queue *R,
-    uint8_t n_attribs) {
-    
-    // Make sure queues l and r are of same size
-    assert(Q_size(L) == Q_size(R));
-    
+Set compute_closure(const Set *s, const Queue *q, uint8_t n_attribs) {
     // Output
     Set closure;
     Set_copy(&closure, s);
     
-    bool is_new_attrib = true;
+    uint8_t is_new_attrib = 1;
     while (is_new_attrib) {
         // Set no new attrib found
-        is_new_attrib = false;
+        is_new_attrib = 0;
         // Iterate through all functional dependencies
-        Q_iterator_t left = Q_iterator(L);
-        Q_iterator_t right = Q_iterator(R);
+        Q_iterator_t iter = Q_iterator(q);
         
-        while (left != NULL && right != NULL) {
+        while (iter) {
             // Check if left-hand side is already contained in closure
             // while right-side is not
-            if (Set_contains(&closure, &left->key) &&
-                !Set_contains(&closure, &right->key)) {
+            if (Set_contains(&closure, &iter->key.lhs) &&
+                !Set_contains(&closure, &iter->key.rhs)) {
                 
                 // Add right-hand side to out
-                closure = Set_union(&closure, &right->key);
+                closure = Set_union(&closure, &iter->key.rhs);
                 // Check if closure is already full
                 if (Set_is_full(&closure, n_attribs)) {
                     goto end;  // nothing left to add
                 }
                 // Found new attribute(s)
-                is_new_attrib = true;
+                is_new_attrib = 1;
             }
             // Advance iterators
-            left = left->next;
-            right = right->next;
+            iter = iter->next;
         }
     }
 
@@ -126,53 +119,44 @@ end:
 
 // Check if set of attributes s is a super-key given functional
 // dependencies in l -> r
-bool is_superkey(const Set *s, const Queue *L, const Queue *R,
-    uint8_t n_attribs) {
-    
-    // Make sure queues l and r are of same size
-    assert(Q_size(L) == Q_size(R));
-    
+uint8_t is_superkey(const Set *s, const Queue *q, uint8_t n_attribs) {
     // Output
     Set closure;
     Set_copy(&closure, s);
     
-    bool is_new_attrib = true;
+    uint8_t is_new_attrib = 1;
     while (is_new_attrib) {
         // Set no new attrib found
-        is_new_attrib = false;
+        is_new_attrib = 0;
         // Iterate through all functional dependencies
-        Q_iterator_t left = Q_iterator(L);
-        Q_iterator_t right = Q_iterator(R);
+        Q_iterator_t iter = Q_iterator(q);
         
-        while (left != NULL && right != NULL) {
+        while (iter) {
             // Check if left-hand side is already contained in closure
             // while right-side is not
-            if (Set_contains(&closure, &left->key) &&
-                !Set_contains(&closure, &right->key)) {
+            if (Set_contains(&closure, &iter->key.lhs) &&
+                !Set_contains(&closure, &iter->key.rhs)) {
                 
                 // Add right-hand side to out
-                closure = Set_union(&closure, &right->key);
+                closure = Set_union(&closure, &iter->key.rhs);
                 if (Set_is_full(&closure, n_attribs)) {
-                    return true;  // Set s is super-key
+                    return 1;  // Set s is super-key
                 }
                 // Found new attribute(s)
-                is_new_attrib = true;
+                is_new_attrib = 1;
             }
             // Advance iterators
-            left = left->next;
-            right = right->next;
+            iter = iter->next;
         }
     }
     
-    return false;
+    return 0;
 }
 
 // From paper: Candidate Keys for Relations (journal of computer and
 // system sciences 1978) by Claudio Lucchesi and Sylvia Osborn.
 // Algorithm. Minimal Key (A, D[0], K)
-Set candidate_key_from_super_key(Set *skey, const Queue *L,
-    const Queue *R, uint8_t n_attribs) {
-    
+Set candidate_key_from_super_key(Set *skey, const Queue *q, uint8_t n_attribs) {
     Set ckey, temp;
     // Copy attributes
     Set_copy(&ckey, skey);
@@ -187,7 +171,7 @@ Set candidate_key_from_super_key(Set *skey, const Queue *L,
         // Remove attribute from temp
         Set_remove(&temp, attrib);
         // Check if ckey - attrib is still a super-key
-        if (is_superkey(&temp, L, R, n_attribs)) {
+        if (is_superkey(&temp, q, n_attribs)) {
             // Attribute attrib is non-essential to ckey -> remove
             Set_copy(&ckey, &temp);
         }
@@ -198,11 +182,7 @@ Set candidate_key_from_super_key(Set *skey, const Queue *L,
 // From paper: Candidate Keys for Relations (journal of computer and
 // system sciences 1978) by Claudio Lucchesi and Sylvia Osborn.
 // Algorithm. Set of Minimal Keys (A, D[0])
-void print_all_candidate_keys(const Queue *L, const Queue *R,
-    uint8_t n_attribs) {
-    
-    // Make sure attribute queues of FDs are of the same size
-    assert(Q_size(L) == Q_size(R));
+void print_all_candidate_keys(const Queue *q, uint8_t n_attribs) {
     // Queues for ckeys and work left
     Queue ckeys, work;
     Q_init(&ckeys);
@@ -212,37 +192,40 @@ void print_all_candidate_keys(const Queue *L, const Queue *R,
     Set attribs;
     Set_full(&attribs, n_attribs);
     // Compute first ckey using all attributes
-    Set ckey = candidate_key_from_super_key(&attribs, L, R, n_attribs);
-    // Print first key
+    q_key_t qkey;
+    Set ckey = candidate_key_from_super_key(&attribs, q, n_attribs);
+    // Print first candidate key
     Set_print(&ckey);
-    // Add this ckey to ckeys and work
-    Q_insert(&ckeys, ckey);
-    Q_insert(&work, ckey);
+    // Add this ckey as key element of queue to ckeys and work
+    // Note: These queues only have a lhs
+    qkey = (q_key_t) {.lhs = ckey, .rhs = (Set) {0}};
+    Q_insert(&ckeys, qkey);
+    Q_insert(&work, qkey);
     // Iterate until no work left (no more candidates to check)
-    while (Q_size(&work) != 0) {
+    while (work.size != 0) {
         // Fetch current key from work queue
-        Set key = Q_pop(&work);
+        const q_key_t key = Q_pop(&work);
         // Iterate over all FDs
-        Q_iterator_t left = Q_iterator(L);
-        Q_iterator_t right = Q_iterator(R);
+        Q_iterator_t iter = Q_iterator(q);
         
-        while (left != NULL && right != NULL) {
+        while (iter) {
             // Obtain sets of attributes of individual side of current
             // functional dependency
-            Set s_left = left->key;
-            Set s_right = right->key;
+            const Set s_left  = iter->key.lhs;
+            const Set s_right = iter->key.rhs;
             // Compute S
-            Set diff = Set_difference(&key, &s_right);
+            const Set diff = Set_difference(&key.lhs, &s_right);
             Set S = Set_union(&s_left, &diff);
             // Test for inclusion of any already found candidate key
-            bool test = true;
+            uint8_t test = 1;
             // Iterate through all already found candidate keys
             Q_iterator_t ckey_iter = Q_iterator(&ckeys);
-            while (ckey_iter != NULL) {
-                Set J = ckey_iter->key;
+            while (ckey_iter) {
+                // Only consider lhs
+                const Set J = ckey_iter->key.lhs;
                 // Check for inclusion
                 if (Set_contains(&S, &J)) {
-                    test = false;
+                    test = 0;
                     break;
                 }
                 // Advance
@@ -252,20 +235,20 @@ void print_all_candidate_keys(const Queue *L, const Queue *R,
             if (test) {
                 // Set S is a super-key and does not contain any already
                 // found candidate keys -> compute new candidate key
-                ckey = candidate_key_from_super_key(&S, L, R, n_attribs);
+                ckey = candidate_key_from_super_key(&S, q, n_attribs);
                 // Add newly found key to both queues
-                Q_insert(&ckeys, ckey);
-                Q_insert(&work, ckey);
+                qkey = (q_key_t) {.lhs = ckey, .rhs = (Set) {0}};
+                Q_insert(&ckeys, qkey);
+                Q_insert(&work, qkey);
                 // Print candidate key
                 Set_print(&ckey);
             }
             // Advance iterators
-            left = left->next;
-            right = right->next;
+            iter = iter->next;
         }
     }
     // Print number of candidate keys found
-    printf("Number of candidate keys: %u\n", Q_size(&ckeys));
+    printf("Number of candidate keys: %u\n", ckeys.size);
     // Cleanup
     Q_free(&ckeys);
     Q_free(&work);
@@ -274,7 +257,7 @@ void print_all_candidate_keys(const Queue *L, const Queue *R,
 int main(int argc, char *argv[]) {
     
     if (argc < 2) {
-        fprintf(stderr, "Usage: ./func_dep <functional dependecy file>\n");
+        fprintf(stderr, "Usage: %s <functional dependecy file>\n", argv[0]);
         exit(EXIT_FAILURE);
     }
     
@@ -308,31 +291,37 @@ int main(int argc, char *argv[]) {
     // Sets for unique vertices on left/right expression sides
     Set s_left, s_right;
     // Queues to store attributes on left/right side of expression
-    Queue q_left, q_right;
-    Q_init(&q_left);
-    Q_init(&q_right);
+    Queue q;
+    Q_init(&q);
     
     // Save pointers (re-entrant)
     char *save_attrib, *save_attrib_list;
-    while (fgets(line_buf, MAX_LINE_LEN, fp) != NULL) {
+    while (fgets(line_buf, MAX_LINE_LEN, fp)) {
+        // DEBUG Print current line
+        //printf("%u> %s", line_num, line_buf);
+        // Make sure current FD is fully contained in buffer
+        size_t length = strlen(line_buf);
+        assert(length > 0);
+        
+        if (line_buf[length-1] != '\n') {
+            fprintf(stderr, "Error parsing functional Dependency on line %u\n",
+                line_num+2);
+            exit_on_error(fp, &q);
+        }
         // Error code
         int8_t ierr;
-        // DEBUG Print current line
-        //printf("%u> %s\n", line_num, line_buf);
-        
         // Search for tokens
         // Parse left-hand side
         char *attrib_list = strtok_r(line_buf, SEP, &save_attrib_list);
         // Check for missing ->
         if (attrib_list == NULL) {
             fprintf(stderr, "Missing '->'\n");
-            handle_error(fp, &q_left, &q_right);
+            exit_on_error(fp, &q);
         }
         // Parse left-hand side
-        ierr = parse_attrib_list(attrib_list, n_attribs, 
-            &save_attrib, &s_left);
+        ierr = parse_attrib_list(attrib_list, n_attribs, &save_attrib, &s_left);
         if (ierr) {
-            handle_error(fp, &q_left, &q_right);
+            exit_on_error(fp, &q);
         }
         
         // Move to next delimited item
@@ -340,17 +329,15 @@ int main(int argc, char *argv[]) {
         // Check for missing right-hand side
         if (attrib_list == NULL) {
             fprintf(stderr, "Right-hand side empty\n");
-            handle_error(fp, &q_left, &q_right);
+            exit_on_error(fp, &q);
         }
         // Parse right-hand side
-        ierr = parse_attrib_list(attrib_list, n_attribs, &save_attrib, 
-            &s_right);
+        ierr = parse_attrib_list(attrib_list, n_attribs, &save_attrib, &s_right);
         if (ierr) {
-            handle_error(fp, &q_left, &q_right);
+            exit_on_error(fp, &q);
         }
-        // Add sets of attributes to respective queues
-        Q_insert(&q_left, s_left);
-        Q_insert(&q_right, s_right);
+        // Add sets of attributes to queue
+        Q_insert(&q, (q_key_t) { .lhs = s_left, .rhs = s_right});
         // Increment line number
         ++line_num;
     }
@@ -363,14 +350,13 @@ int main(int argc, char *argv[]) {
     // Measure CPU time
     clock_t start = clock(), elapsed;
     // Print all candidate keys of functional dependencies to console
-    print_all_candidate_keys(&q_left, &q_right, n_attribs);
+    print_all_candidate_keys(&q, n_attribs);
     // Elapsed CPU time
     elapsed = clock() - start;
-    double seconds = (double)elapsed / CLOCKS_PER_SEC;
+    const double seconds = (double)elapsed / CLOCKS_PER_SEC;
     printf("Took: %.3e s\n", seconds);
-    // Cleanup queues
-    Q_free(&q_left);
-    Q_free(&q_right);
+    // Cleanup queue
+    Q_free(&q);
     
     return EXIT_SUCCESS;
 }
