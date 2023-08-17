@@ -4,43 +4,33 @@
 #include <stdint.h>
 #include <stdio.h>
 
-// Helper function: Count number of set bits 
-static uint8_t _popcnt(uint32_t num) {
-    uint8_t count = 0;
-    for (uint8_t i = 0; i < MAX_ATTRIBS; ++i) {
-        if (num & (1u << i)) 
-            ++count;
-    }
-    return count;
-}
-
 /*
  * Set operations
  * 
  */
 // Union
 Set Set_union(const Set *s, const Set *t) {
-    uint32_t u = s->set | t->set;
+    const uint32_t u = s->set | t->set;
     return (Set) { .set    = u, 
-                   .size   = _popcnt(u),
+                   .size   = __builtin_popcount(u),
                    .cursor = 0,
                    .count  = 0 };
 }
 
 // Intersection
 Set Set_intersection(const Set *s, const Set *t) {
-    uint32_t i = s->set & t->set;
+    const uint32_t i = s->set & t->set;
     return (Set) { .set    = i, 
-                   .size   = _popcnt(i),
+                   .size   = __builtin_popcount(i),
                    .cursor = 0,
                    .count  = 0 };
 }
 
 // Difference
 Set Set_difference(const Set *s, const Set *t) {
-    uint32_t d = s->set & ((~t->set) & USED_MASK);
+    const uint32_t d = s->set & (~t->set);
     return (Set) { .set    = d, 
-                   .size   = _popcnt(d),
+                   .size   = __builtin_popcount(d),
                    .cursor = 0,
                    .count  = 0 };
 }

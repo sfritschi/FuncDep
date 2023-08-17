@@ -6,7 +6,6 @@
 
 #define MAX_ATTRIBS 26u
 #define INVALID_ATTRIB (MAX_ATTRIBS)
-#define USED_MASK 0x03FFFFFFu  // mask for bits that are actually used
 
 typedef struct {
     uint32_t set;

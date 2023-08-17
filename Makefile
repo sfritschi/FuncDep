@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-Wall -Wextra -Wpedantic -std=c11 -D_POSIX_C_SOURCE
+CFLAGS=-Wall -Wextra -Wpedantic -std=c11 -D_POSIX_C_SOURCE -mpopcnt
 RELEASE_FLAGS=-O3 -DNDEBUG
 DEBUG_FLAGS=-ggdb3
 
